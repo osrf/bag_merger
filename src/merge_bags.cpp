@@ -15,7 +15,7 @@
  *
 */
 
-#include <rcutils/cmdline_parser.h>
+#include <rcutils/filesystem.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
@@ -224,6 +224,9 @@ int main(int argc, char ** argv)
   if (readers.size() == 0) {
     return 1;
   }
+  // Create the output directory
+  // TODO(geoff): Check if the output directory already exists
+  rcutils_mkdir(output.value().c_str());
   // Create a writer for the output bag
   std::unique_ptr<rosbag2_cpp::Writer> writer = make_writer(output.value());
 
