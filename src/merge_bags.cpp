@@ -1,22 +1,20 @@
-/*
- * Copyright (C) 2021 Open Source Robotics Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
-*/
+// Copyright 2021, Open Source Robotics Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <rcutils/filesystem.h>
 
+#include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
 #include <rosbag2_cpp/reader.hpp>
@@ -26,7 +24,8 @@
 
 #include <algorithm>
 #include <iostream>
-#include <optional>
+#include <limits>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,7 +33,8 @@
 
 using ReaderPtr = std::shared_ptr<rosbag2_cpp::Reader>;
 using NextMessage = std::optional<std::shared_ptr<rosbag2_storage::SerializedBagMessage>>;
-struct ReaderWithNext {
+struct ReaderWithNext
+{
   ReaderPtr reader;
   NextMessage next_message;
 };
@@ -48,7 +48,7 @@ std::pair<std::vector<std::string>, std::optional<std::string>> get_options(int 
   // There must be at least 5 arguments:
   // program name, -o, output destination, input bag 1, input bag 2
   if (argc < 5) {
-    std::cerr << "Usage: " << argv[0] << " -o <output name> <input bag> <input bag...>\n";
+    std::cerr << "Usage: " << argv[0] << " -o <output bag> <input bag> <input bag...>\n";
     return empty_result;
   }
 
@@ -77,13 +77,13 @@ ReaderStore make_readers(const std::vector<std::string> & input_names)
 {
   ReaderStore result;
 
-  for (const auto & input_name: input_names) {
+  for (const auto & input_name : input_names) {
     std::unique_ptr<rosbag2_cpp::readers::SequentialReader> reader_impl =
       std::make_unique<rosbag2_cpp::readers::SequentialReader>();
     const rosbag2_cpp::StorageOptions storage_options({input_name, "sqlite3"});
     const rosbag2_cpp::ConverterOptions converter_options(
-    {rmw_get_serialization_format(),
-      rmw_get_serialization_format()});
+      {rmw_get_serialization_format(),
+        rmw_get_serialization_format()});
     reader_impl->open(storage_options, converter_options);
 
     std::shared_ptr<rosbag2_cpp::Reader> reader =
@@ -117,13 +117,13 @@ std::vector<rosbag2_storage::TopicMetadata> combine_input_topics(const ReaderSto
 {
   std::vector<rosbag2_storage::TopicMetadata> result;
 
-  for (const auto& r: readers) {
+  for (const auto & r : readers) {
     auto topic_metadata = r.reader->get_all_topics_and_types();
-    for (auto && t: topic_metadata) {
+    for (auto && t : topic_metadata) {
       auto existing_topic = std::find_if(
         result.begin(),
         result.end(),
-        [&t](auto topic){
+        [&t](auto topic) {
           return topic.name == t.name;
         });
       if (existing_topic == result.end()) {
@@ -140,7 +140,7 @@ void set_output_metadata(
   std::unique_ptr<rosbag2_cpp::Writer> & writer,
   const std::vector<rosbag2_storage::TopicMetadata> & topics)
 {
-  for (const auto & t: topics) {
+  for (const auto & t : topics) {
     writer->create_topic(t);
   }
 }
@@ -149,7 +149,7 @@ void set_output_metadata(
 uint64_t get_total_message_count(const ReaderStore & readers)
 {
   uint64_t total = 0;
-  for (const auto & r: readers) {
+  for (const auto & r : readers) {
     total += r.reader->get_metadata().message_count;
   }
   return total;

@@ -22,6 +22,8 @@
 
 #include <iostream>
 #include <memory>
+#include <string>
+#include <utility>
 
 
 void read_and_print_bag(std::string uri)
@@ -40,10 +42,11 @@ void read_and_print_bag(std::string uri)
     auto message = reader.read_next();
     example_interfaces::msg::Int32 data;
 
-
-    //auto serialized_message = rclcpp::SerializedMessage(message->serialized_data);
-
-    //serializer.deserialize_message(message->serialized_data, &data);
+    rcutils_uint8_array_t raw_data = *message->serialized_data;
+    auto serialized_message = rclcpp::SerializedMessage(raw_data);
+    serializer.deserialize_message(&serialized_message, &data);
+    // The data is owned by the original shared pointer in the SerializedBagMessage object, not the
+    // SerializedMessage object
 
     std::cout << "Topic: " << message->topic_name << "\tData: " << data.data << "\tTime stamp: " <<
       message->time_stamp << '\n';

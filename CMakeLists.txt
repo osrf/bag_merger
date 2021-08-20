@@ -46,9 +46,6 @@ if(BUILD_TESTING)
       rosbag2_storage
       example_interfaces
     )
-    install(TARGETS generate_test_bags
-      DESTINATION lib/${PROJECT_NAME}
-    )
   endif()
 
   add_executable(print_bag
@@ -60,10 +57,12 @@ if(BUILD_TESTING)
       rosbag2_storage
       example_interfaces
     )
-    install(TARGETS print_bag
-      DESTINATION lib/${PROJECT_NAME}
-    )
   endif()
+
+  add_test(
+    NAME test_bag_merging
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/test/test_bag_merging.py ${CMAKE_CURRENT_BINARY_DIR}
+  )
 endif()
 
 ament_package()

@@ -23,17 +23,17 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <string>
 
 
 void prepare_input_bag(
-  int num_topics=1,
-  int num_samples=5,
-  int start_data=0,
-  int start_time_offset=0,
-  std::string suffix="0")
+  int num_topics = 1,
+  int num_samples = 5,
+  int start_data = 0,
+  int start_time_offset = 0,
+  int time_increment = 100,
+  std::string bag_path = "input_bag_0")
 {
-  auto bag_path = std::filesystem::temp_directory_path() / ("input_bag_" + suffix);
-  std::cout << "Writing to bag file " << bag_path << '\n';
   rcutils_mkdir(bag_path.c_str());
 
   const rosbag2_cpp::StorageOptions storage_options({bag_path.string(), "sqlite3"});
@@ -45,7 +45,7 @@ void prepare_input_bag(
 
   for (int ii = 0; ii < num_topics; ++ii) {
     std::stringstream topic_name;
-    topic_name << "input_bag_" << suffix << "_topic_" << ii;
+    topic_name << bag_path << "_topic_" << ii;
     writer->create_topic(
       {topic_name.str(),
         "example_interfaces/msg/Int32",
@@ -63,7 +63,7 @@ void prepare_input_bag(
     serializer.serialize_message(&data, &serialized_message);
 
     std::stringstream topic_name;
-    topic_name << "input_bag_" << suffix << "_topic_" << topic_number;
+    topic_name << bag_path << "_topic_" << topic_number;
 
     auto bag_message = std::make_shared<rosbag2_storage::SerializedBagMessage>();
     bag_message->serialized_data = std::shared_ptr<rcutils_uint8_array_t>(
@@ -83,15 +83,34 @@ void prepare_input_bag(
 
     writer->write(bag_message);
 
-    timestamp += 100;
+    timestamp += time_increment;
     topic_number = (topic_number + 1) % num_topics;
   }
 }
 
 
-int main(int, char **)
+int main(int argc, char ** argv)
 {
-  prepare_input_bag(1, 5, 0, 0, "0");
-  prepare_input_bag(2, 5, 10, 50, "1");
+  if (argc < 6) {
+    std::cerr << "Usage: " << argv[0] <<
+      " [num_topics] [num_samples] [start_data] [start_time_offset] [time_increment] [bag_path]\n";
+    return 1;
+  }
+
+  int num_topics = std::atoi(argv[1]);
+  int num_samples = std::atoi(argv[2]);
+  int start_data = std::atoi(argv[3]);
+  int start_time_offset = std::atoi(argv[4]);
+  int time_increment = std::atoi(argv[5]);
+  char * bag_path = argv[6];
+
+  prepare_input_bag(
+    num_topics,
+    num_samples,
+    start_data,
+    start_time_offset,
+    time_increment,
+    bag_path);
+
   return 0;
 }
