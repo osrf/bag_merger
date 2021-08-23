@@ -36,7 +36,7 @@ void prepare_input_bag(
 {
   rcutils_mkdir(bag_path.c_str());
 
-  const rosbag2_cpp::StorageOptions storage_options({bag_path.string(), "sqlite3"});
+  const rosbag2_cpp::StorageOptions storage_options({bag_path, "sqlite3"});
   const rosbag2_cpp::ConverterOptions converter_options(
     {rmw_get_serialization_format(), rmw_get_serialization_format()});
   std::unique_ptr<rosbag2_cpp::writers::SequentialWriter> writer =
