@@ -225,7 +225,10 @@ int main(int argc, char ** argv)
     return 1;
   }
   // Create the output directory
-  // TODO(geoff): Check if the output directory already exists
+  if (rcutils_exists(output.value().c_str())) {
+    std::cerr << "Output bag directory already exists\n";
+    return 1;
+  }
   rcutils_mkdir(output.value().c_str());
   // Create a writer for the output bag
   std::unique_ptr<rosbag2_cpp::Writer> writer = make_writer(output.value());
