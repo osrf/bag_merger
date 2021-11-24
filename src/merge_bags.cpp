@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <rcutils/filesystem.h>
+#include <rcpputils/filesystem_helper.hpp>
 
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
@@ -41,9 +41,11 @@ struct ReaderWithNext
 using ReaderStore = std::vector<ReaderWithNext>;
 
 
-std::pair<std::vector<std::string>, std::optional<std::string>> get_options(int argc, char ** argv)
+std::pair<std::vector<rcpputils::fs::path>, std::optional<rcpputils::fs::path>>
+get_options(int argc, char ** argv)
 {
-  std::pair<std::vector<std::string>, std::optional<std::string>> empty_result{{}, std::nullopt};
+  std::pair<std::vector<rcpputils::fs::path>, std::optional<rcpputils::fs::path>>
+    empty_result{{}, std::nullopt};
 
   // There must be at least 5 arguments:
   // program name, -o, output destination, input bag 1, input bag 2
@@ -52,8 +54,8 @@ std::pair<std::vector<std::string>, std::optional<std::string>> get_options(int 
     return empty_result;
   }
 
-  std::vector<std::string> inputs;
-  std::optional<std::string> output = std::nullopt;
+  std::vector<rcpputils::fs::path> inputs;
+  std::optional<rcpputils::fs::path> output = std::nullopt;
 
   std::string flag = "-o";
   for (int ii = 1; ii < argc; ++ii) {
@@ -62,10 +64,10 @@ std::pair<std::vector<std::string>, std::optional<std::string>> get_options(int 
         std::cerr << "Missing argument to output flag\n";
         return empty_result;
       }
-      output = std::string(argv[ii + 1]);
+      output = rcpputils::fs::path(argv[ii + 1]);
       ii += 1;
     } else {
-      inputs.push_back(argv[ii]);
+      inputs.push_back(rcpputils::fs::path(argv[ii]));
     }
   }
 
@@ -73,14 +75,14 @@ std::pair<std::vector<std::string>, std::optional<std::string>> get_options(int 
 }
 
 
-ReaderStore make_readers(const std::vector<std::string> & input_names)
+ReaderStore make_readers(const std::vector<rcpputils::fs::path> & input_names)
 {
   ReaderStore result;
 
   for (const auto & input_name : input_names) {
     std::unique_ptr<rosbag2_cpp::readers::SequentialReader> reader_impl =
       std::make_unique<rosbag2_cpp::readers::SequentialReader>();
-    const rosbag2_cpp::StorageOptions storage_options({input_name, "sqlite3"});
+    const rosbag2_cpp::StorageOptions storage_options({input_name.string(), "sqlite3"});
     const rosbag2_cpp::ConverterOptions converter_options(
       {rmw_get_serialization_format(),
         rmw_get_serialization_format()});
@@ -99,9 +101,9 @@ ReaderStore make_readers(const std::vector<std::string> & input_names)
 }
 
 
-std::unique_ptr<rosbag2_cpp::Writer> make_writer(const std::string & output_name)
+std::unique_ptr<rosbag2_cpp::Writer> make_writer(const rcpputils::fs::path & output_name)
 {
-  const rosbag2_cpp::StorageOptions storage_options({output_name, "sqlite3"});
+  const rosbag2_cpp::StorageOptions storage_options({output_name.string(), "sqlite3"});
   const rosbag2_cpp::ConverterOptions converter_options(
     {rmw_get_serialization_format(),
       rmw_get_serialization_format()});
@@ -208,30 +210,41 @@ int main(int argc, char ** argv)
 {
   auto inputs_and_output = get_options(argc, argv);
   auto inputs = inputs_and_output.first;
-  auto output = inputs_and_output.second;
+  auto output_option = inputs_and_output.second;
+  rcpputils::fs::path output;
 
   if (inputs.size() == 0) {
     std::cerr << "Missing input bags\n";
     return 1;
   }
-  if (output == std::nullopt) {
+  if (output_option == std::nullopt) {
     std::cerr << "Missing output bag name\n";
     return 1;
   }
+  output = output_option.value();
 
   // Create a reader for each input bag
   ReaderStore readers = make_readers(inputs);
   if (readers.size() == 0) {
     return 1;
   }
+  // Make the output directory absolute
+  if (!output.is_absolute()) {
+    auto cwd = rcpputils::fs::current_path();
+    output = cwd / output;
+  }
   // Create the output directory
-  if (rcutils_exists(output.value().c_str())) {
+  if (output.exists()) {
     std::cerr << "Output bag directory already exists\n";
     return 1;
   }
-  rcutils_mkdir(output.value().c_str());
+  std::cout << "Creating output directory '" << output.string() << "' for destination bag\n";
+  if (!rcpputils::fs::create_directories(output)) {
+    std::cerr << "Failed to create destination bag's output directory\n";
+    return 1;
+  }
   // Create a writer for the output bag
-  std::unique_ptr<rosbag2_cpp::Writer> writer = make_writer(output.value());
+  std::unique_ptr<rosbag2_cpp::Writer> writer = make_writer(output);
 
   // Combine the input bag topics into one list and use it for the output bag metadata
   auto input_topics = combine_input_topics(readers);
