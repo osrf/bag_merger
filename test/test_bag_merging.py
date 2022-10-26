@@ -86,7 +86,9 @@ def generate_input_bag(
 
 def merge_bags(inputs, merged_name, binary_path):
     print(f'Merging bags {inputs} into {merged_name}')
-    command = [os.path.join(binary_path, 'merge_bags')] + inputs + ['-o', merged_name]
+    command = [
+        os.path.join(binary_path, 'merge_bags')
+    ] + inputs + ['-o', merged_name] + ["-d", "1"]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         print(f'Failed to merge {inputs} into bag {merged_name}:\n'
